@@ -6,7 +6,7 @@
     "react-scripts": "0.7.0"
   },
   "dependencies": {
-    "antd": "^2.2.1",
+    "antd": "^2.3.0",
     "gsap": "^1.19.0",
     "jquery": "^2.2.4",
     "react": "^15.3.2",
@@ -20,5 +20,5 @@
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
   },
-  "homepage":"."
+  "homepage": "."
 }
