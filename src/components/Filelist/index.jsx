@@ -1,3 +1,4 @@
+// edit 2016/11/10
 import React from 'react';
 // import ReactDOM from 'react-dom';
 import ajax from "./ajax.js";
