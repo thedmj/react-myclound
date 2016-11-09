@@ -15,7 +15,8 @@ var Filelistitem = React.createClass({
     getInitialState:function(){
         return {
             showRename:false,
-            title:this.props.title
+            title:this.props.title,
+            path:this.props.path
         }
         
     },
@@ -32,7 +33,7 @@ var Filelistitem = React.createClass({
         return (
             <li  onMouseDown={this.rightClick} style={style}>
             
-                <span className="icon" onClick={(path,isfolder) => { this.props.itemclick(this.props.path,this.props.isfolder); } }>
+                <span className="icon" onClick={(path,isfolder) => { this.props.itemclick(this.state.path,this.props.isfolder); } }>
                     <Icon type={this.props.isfolder?"folder":type} />
                 </span>
                 <span className="title" style={{display:this.state.showRename?"none":"inline-block"}}>
@@ -46,6 +47,7 @@ var Filelistitem = React.createClass({
     },
     onPressEnter:function(e){ //rename输入回车
         this.rename(this.props.path,e.target.value);
+        
     },
     rename:function(path,name){ //重命名函数
         var url = "http://101.200.129.112:9527/file/rename/";
@@ -56,10 +58,13 @@ var Filelistitem = React.createClass({
         }).end(function(err,res){
             if(err){console.log(err)}
             if(res.ok){
-                This.props.cancel();
+                // This.props.cancel();
                 This.setState({
-                    title:name
+                    title:name,
+                    path:res.body.path,
+                    showRename:false
                 });
+                
             }
         });
     },
@@ -75,11 +80,16 @@ var Filelistitem = React.createClass({
                 showRename:false
             });
         }
-        
     },
     
     rightClick:function(e){ //右键文件激活选中项
         if(e.button === 2){
+            if(!!this.props.filelist.state.selectedItem.item){
+                this.props.filelist.state.selectedItem.item.setState({
+                    showRename:false
+                });
+            }
+            
             this.props.pickItem(this.props.title,this);
         }
     },
@@ -112,11 +122,10 @@ var Filelist = React.createClass({
         var dir = this.state.dir;
         var items = dir.map(function (item, index) {
             var active = false;
-            var renameShow =false;
             if(item.name === This.state.selectedItem.name){
                 active = true;
             }
-            return <Filelistitem  renameShow={renameShow} active={active} key={item.path+item.name} title={item.name} itemclick={This.itemClickHandle} path={item.path} ext={item.ext} isfolder={item.isFolder} pickItem={This.pickItem} pickItemName={This.state.selectedItem.name} selectedItem={This.state.selectedItem} cancel={This.cancel}/>
+            return <Filelistitem  active={active} key={item.path+item.name} title={item.name} itemclick={This.itemClickHandle} path={item.path} ext={item.ext} isfolder={item.isFolder} pickItem={This.pickItem} pickItemName={This.state.selectedItem.name} selectedItem={This.state.selectedItem} cancel={This.cancel} filelist={This}/>
         });
         var breadItems =[];
         var breadPath="";
@@ -186,6 +195,12 @@ var Filelist = React.createClass({
                 }
             });
         }else{
+            if(!!this.state.selectedItem.item){
+                this.state.selectedItem.item.setState({
+                showRename:false
+            });
+            }
+            
             this.cancel();
         }
     },
@@ -198,7 +213,12 @@ var Filelist = React.createClass({
             }
         });
     },
-    renameShow:function(){ //激活重命名
+    renameShow:function(e){ //激活重命名
+        e.stopPropagation();
+        
+        this.setState({
+            showMenu:false
+        });
         this.state.selectedItem.item.setState({
             showRename:true
         })
