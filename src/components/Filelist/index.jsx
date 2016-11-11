@@ -1,6 +1,5 @@
 // edit 2016/11/11
 import React from 'react';
-// import ReactDOM from 'react-dom';
 import {get,rename,mkdir,remove} from "./ajax.js";
 import { Icon ,Breadcrumb,Input,Modal} from "antd";
 import { Router, Route, hashHistory ,Link} from 'react-router';
@@ -65,8 +64,8 @@ var Filelistitem = React.createClass({
         
     },
     rename:function(path,name){ //重命名函数
+        console.log(this.props.path);
         if(this.props.title!==name){
-            // var url = "http://101.200.129.112:9527/file/rename/";
             var This = this;
             var reg = new RegExp("^"+name+"$");
             var dir =this.props.filelist.state.dir;
@@ -78,27 +77,15 @@ var Filelistitem = React.createClass({
             }
             index=index===0?"":"("+index+")";
             name+=index;
-            // request.get(url).query({
-            //     path:path,
-            //     name:name
-            // }).end(function(err,res){
-            //     if(err){console.log(err)}
-            //     if(res.ok){
-            //         This.setState({
-            //             title:name,
-            //             path:res.body.path,
-            //             showRename:false
-            //         });
-                    
-            //     }
-            // });
             rename(path,name,function(res){
+                console.log(path);
                 This.setState({
                     title:name,
                     path:res.path,
                     showRename:false
                 });
             },function(err){
+                
                 if(err) console.log(err);
             });
         }else{
@@ -288,7 +275,6 @@ var Filelist = React.createClass({
         for(var i=0;i<dir.length;i++){
             if(reg.test(dir[i].name)){
                 var r =/\((\d)\)$/;
-                console.log(dir[i].name.match(r));
                 index =!!dir[i].name.match(r)?dir[i].name.match(r)[1]*1:0;
                 
                 index++;
@@ -296,25 +282,11 @@ var Filelist = React.createClass({
         }
         index=index===0?"":"("+index+")";
         var name="newfolder"+index;
-        var newfolder ={path:this.state.path+"/"+name,name:name,isFolder:true,ext:""}
-        // var url ="http://101.200.129.112:9527/file/mkdir";
+        var path = this.state.path === "/"?"":this.state.path;
+        var newfolder ={path:path+"/"+name,name:name,isFolder:true,ext:""}
+        console.log(newfolder.path);
         var This =this;
-        // request.get(url).query({
-        //     path:this.state.path,
-        //     name:newfolder.name
-        // }).end(function(err,res){
         
-        //     if(res.ok){
-        //         dir.push(newfolder);
-        //         This.setState({
-        //             dir:dir,
-        //             selectedItem:{
-        //                 name:newfolder.name,
-        //                 item:null
-        //             }
-        //         });
-        //     }
-        // });
         mkdir(this.state.path,newfolder.name,function(res){
                 dir.push(newfolder);
                 This.setState({
@@ -335,43 +307,20 @@ var Filelist = React.createClass({
         var This = this;
         var path =This.state.selectedItem.item.state.path;
         var name =This.state.selectedItem.name;
-        // var url ="http://101.200.129.112:9527/file/remove";
+  
         Modal.confirm({
         title: "删除文件",
         content: "你确定要删除"+name+"?",
         okText: 'OK',
         cancelText: 'Cancel',
         onOk:function(){
-            // request.get(url).query({path:path}).end(function(err,res){
-            //     if(err){
-            //         console.log(err);
-            //     }
-            //     if(res.ok){
-                    
-            //         var dir = This.state.dir;
-            //         var newdir =[];
-            //         for(var i=0;i<dir.length;i++){
-            //             if(dir[i].name!==name){
-            //                 newdir.push(dir[i])
-            //                 console.log(dir[i],name);
-            //             }
-            //         }
-            //         This.setState({
-            //             dir:newdir,
-            //             selectedItem:{
-            //                 name:"",
-            //                 item:null
-            //             }
-            //         })
-            //     }
-            // });
+          
             remove(path,function(){
                     var dir = This.state.dir;
                     var newdir =[];
                     for(var i=0;i<dir.length;i++){
                         if(dir[i].name!==name){
                             newdir.push(dir[i])
-                            console.log(dir[i],name);
                         }
                     }
                     This.setState({
