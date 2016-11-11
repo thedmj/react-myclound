@@ -1,8 +1,8 @@
-// edit 2016/11/10
+// edit 2016/11/11
 import React from 'react';
 // import ReactDOM from 'react-dom';
-import ajax from "./ajax.js";
-import { Icon ,Breadcrumb,Input} from "antd";
+import {get,rename,mkdir,remove} from "./ajax.js";
+import { Icon ,Breadcrumb,Input,Modal} from "antd";
 import { Router, Route, hashHistory ,Link} from 'react-router';
 import Loading from "../Loading";
 import $ from "jquery";
@@ -10,7 +10,7 @@ import Menu from "../Menu";
 require("./index.css");
 require("antd/dist/antd.css");
 import TweenMax from "../../../gsap/TweenMax.js";
-import request from "superagent";
+
 
 var Filelistitem = React.createClass({
     getInitialState:function(){
@@ -46,28 +46,65 @@ var Filelistitem = React.createClass({
             </li>
         )
     },
+    componentDidMount:function(){
+        if(this.state.title===this.props.filelist.state.selectedItem.name){
+            this.setState({
+                showRename:true
+            });
+            this.props.filelist.setState({
+                selectedItem:{
+                    name:this.state.title,
+                    item:this
+                }
+            })
+        }
+    },
     onPressEnter:function(e){ //rename输入回车
+        
         this.rename(this.props.path,e.target.value);
         
     },
     rename:function(path,name){ //重命名函数
-        var url = "http://101.200.129.112:9527/file/rename/";
-        var This = this;
-        request.get(url).query({
-            path:path,
-            name:name
-        }).end(function(err,res){
-            if(err){console.log(err)}
-            if(res.ok){
-                // This.props.cancel();
+        if(this.props.title!==name){
+            // var url = "http://101.200.129.112:9527/file/rename/";
+            var This = this;
+            var reg = new RegExp("^"+name+"$");
+            var dir =this.props.filelist.state.dir;
+            var index=0;
+            for(var i =0;i<dir.length;i++){
+                if(reg.test(dir[i].name)){
+                    index++;
+                }
+            }
+            index=index===0?"":"("+index+")";
+            name+=index;
+            // request.get(url).query({
+            //     path:path,
+            //     name:name
+            // }).end(function(err,res){
+            //     if(err){console.log(err)}
+            //     if(res.ok){
+            //         This.setState({
+            //             title:name,
+            //             path:res.body.path,
+            //             showRename:false
+            //         });
+                    
+            //     }
+            // });
+            rename(path,name,function(res){
                 This.setState({
                     title:name,
-                    path:res.body.path,
+                    path:res.path,
                     showRename:false
                 });
-                
-            }
-        });
+            },function(err){
+                if(err) console.log(err);
+            });
+        }else{
+            this.setState({showRename:false});
+        }
+        
     },
     componentDidUpdate:function(){
         if(this.props.pickItemName === this.props.title){
@@ -84,19 +121,27 @@ var Filelistitem = React.createClass({
     },
     
     rightClick:function(e){ //右键文件激活选中项
+        e.stopPropagation();
         if(e.button === 2){
             if(!!this.props.filelist.state.selectedItem.item){
                 this.props.filelist.state.selectedItem.item.setState({
-                    showRename:false
+                    showRename:false,
                 });
             }
+            this.props.filelist.setState({
+                showMenu:true,
+                    position:{
+                        x:e.clientX,
+                        y:e.clientY
+                    }
+            });
+            
             
             this.props.pickItem(this.props.title,this);
         }
     },
     
 });
-var url = "http://101.200.129.112:9527/static/";
 
 // ------------------------------------------------------------------------------------
 
@@ -108,7 +153,7 @@ var Filelist = React.createClass({
     componentDidMount: function () {
         this.setState({loading:true});
         var This = this;
-        ajax(this.state.path, function (res) {
+        get(this.state.path, function (res) {
             This.setState({ dir: res.file ,loading:false});
             var t = new TweenMax.TimelineMax();
             var text = $(".filelist h1 span");
@@ -150,12 +195,15 @@ var Filelist = React.createClass({
                     {items}
                 </ul>
                 <Loading show={this.state.loading} />
-                <Menu  position={this.state.position} showMenu={this.state.showMenu} onrename={this.renameShow} selectedItemName={this.state.selectedItem.name}/>
+                
+                <Menu  position={this.state.position} showMenu={this.state.showMenu} onrename={this.renameShow} selectedItemName={this.state.selectedItem.name} filelist={this} newfolder={this.newfolder} delete={this.delete}/>
             </div>
         )
     },
     itemClickHandle: function (path,isfolder) { //文件点击事件
+        var url = "http://101.200.129.112:9527/static/";
         if(isfolder){
+            console.log(path);
             hashHistory.push(path);
         }else{
             window.open(url+ path);
@@ -165,13 +213,14 @@ var Filelist = React.createClass({
     },componentWillReceiveProps: function(nextProps) { //改变路由时获取路径来改变state
         var path =nextProps.routeParams.splat;
         if(this.props.routeParams.splat!== path){
-            this.update(path);
+            this.update(path+"/");
+            this.cancel();
         }
     },
     update:function(path){ //请求函数
         this.setState({loading:true});
         var This = this;
-        ajax(path, function (res) {
+        get(path, function (res) {
             This.setState({ dir: res.file, path: path,loading:false });
         }, function (err) {
             console.log(err);
@@ -188,6 +237,12 @@ var Filelist = React.createClass({
     },
     rightClick:function(e){ //右键弹出菜单 左键隐藏
         if(e.button ===2){
+            if(!!this.state.selectedItem.item){
+                this.state.selectedItem.item.setState({
+                    showRename:false
+                });
+                this.cancel();
+            }
             this.setState({
                 showMenu:true,
                 position:{
@@ -225,7 +280,113 @@ var Filelist = React.createClass({
         })
 
     },
-    
+    newfolder:function(){
+        var dir = this.state.dir;
+        var reg =/^newfolder/;
+        var index=0;
+        
+        for(var i=0;i<dir.length;i++){
+            if(reg.test(dir[i].name)){
+                var r =/\((\d)\)$/;
+                console.log(dir[i].name.match(r));
+                index =!!dir[i].name.match(r)?dir[i].name.match(r)[1]*1:0;
+                
+                index++;
+            }
+        }
+        index=index===0?"":"("+index+")";
+        var name="newfolder"+index;
+        var newfolder ={path:this.state.path+"/"+name,name:name,isFolder:true,ext:""}
+        // var url ="http://101.200.129.112:9527/file/mkdir";
+        var This =this;
+        // request.get(url).query({
+        //     path:this.state.path,
+        //     name:newfolder.name
+        // }).end(function(err,res){
+        
+        //     if(res.ok){
+        //         dir.push(newfolder);
+        //         This.setState({
+        //             dir:dir,
+        //             selectedItem:{
+        //                 name:newfolder.name,
+        //                 item:null
+        //             }
+        //         });
+        //     }
+        // });
+        mkdir(this.state.path,newfolder.name,function(res){
+                dir.push(newfolder);
+                This.setState({
+                    dir:dir,
+                    selectedItem:{
+                        name:newfolder.name,
+                        item:null
+                    }
+                });
+        },function(err){
+            if(err) console.log(err);
+        })
+    },
+    delete:function(){
+        this.confirm();
+    },
+    confirm:function(){
+        var This = this;
+        var path =This.state.selectedItem.item.state.path;
+        var name =This.state.selectedItem.name;
+        // var url ="http://101.200.129.112:9527/file/remove";
+        Modal.confirm({
+        title: "删除文件",
+        content: "你确定要删除"+name+"?",
+        okText: 'OK',
+        cancelText: 'Cancel',
+        onOk:function(){
+            // request.get(url).query({path:path}).end(function(err,res){
+            //     if(err){
+            //         console.log(err);
+            //     }
+            //     if(res.ok){
+                    
+            //         var dir = This.state.dir;
+            //         var newdir =[];
+            //         for(var i=0;i<dir.length;i++){
+            //             if(dir[i].name!==name){
+            //                 newdir.push(dir[i])
+            //                 console.log(dir[i],name);
+            //             }
+            //         }
+            //         This.setState({
+            //             dir:newdir,
+            //             selectedItem:{
+            //                 name:"",
+            //                 item:null
+            //             }
+            //         })
+            //     }
+            // });
+            remove(path,function(){
+                    var dir = This.state.dir;
+                    var newdir =[];
+                    for(var i=0;i<dir.length;i++){
+                        if(dir[i].name!==name){
+                            newdir.push(dir[i])
+                            console.log(dir[i],name);
+                        }
+                    }
+                    This.setState({
+                        dir:newdir,
+                        selectedItem:{
+                            name:"",
+                            item:null
+                        }
+                    });
+            },function(err){
+                if(err) console.log(err);
+            });
+            }
+            });
+    }
 
 });
 
