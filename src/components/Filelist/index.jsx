@@ -1,7 +1,7 @@
-// edit 2016/11/11
+// edit 2016/11/13
 import React from 'react';
-import {get,rename,mkdir,remove} from "./ajax.js";
-import { Icon ,Breadcrumb,Input,Modal} from "antd";
+import {get,rename,mkdir,remove,past} from "./ajax.js";
+import { Icon ,Breadcrumb,Input,Modal,message} from "antd";
 import { Router, Route, hashHistory ,Link} from 'react-router';
 import Loading from "../Loading";
 import $ from "jquery";
@@ -16,13 +16,15 @@ var Filelistitem = React.createClass({
         return {
             showRename:false,
             title:this.props.title,
-            path:this.props.path
+            path:this.props.path,
+            hasCut:false
         }
         
     },
     render: function () {
         var style={
-            background:this.props.active?"blue":"inherit"
+            background:this.props.active?"blue":"inherit",
+            opacity:this.state.hasCut?"0.5":"1"
         }
         var typeList={".html":"code",".txt":"file-text",".jpg":"file-jpg",".png":"picture",".git":"picture",".md":"book"};
         
@@ -32,7 +34,6 @@ var Filelistitem = React.createClass({
         };
         return (
             <li  onMouseDown={this.rightClick} style={style}>
-            
                 <span className="icon" onClick={(path,isfolder) => { this.props.itemclick(this.state.path,this.props.isfolder); } }>
                     <Icon type={this.props.isfolder?"folder":type} />
                 </span>
@@ -102,7 +103,8 @@ var Filelistitem = React.createClass({
     componentWillReceiveProps:function(nextProps){ //更换选中项后取消激活rename 这里componentWillReceiveProps会遍历items
         if(this.props.selectedItem.name===""){
             this.setState({
-                showRename:false
+                showRename:false,
+                hasCut:false
             });
         }
     },
@@ -135,7 +137,7 @@ var Filelistitem = React.createClass({
 
 var Filelist = React.createClass({
     getInitialState: function () {
-        return { dir: [], path: "/"+this.props.routeParams.splat ,loading:false,selectedItem:{name:"",item:null},showMenu:false,position:{x:0,y:0}}
+        return { dir: [], path: "/"+this.props.routeParams.splat ,loading:false,selectedItem:{name:"",item:null},showMenu:false,position:{x:0,y:0},copyItem:null,cutItem:null}
     },
     componentDidMount: function () {
         this.setState({loading:true});
@@ -183,14 +185,13 @@ var Filelist = React.createClass({
                 </ul>
                 <Loading show={this.state.loading} />
                 
-                <Menu  position={this.state.position} showMenu={this.state.showMenu} onrename={this.renameShow} selectedItemName={this.state.selectedItem.name} filelist={this} newfolder={this.newfolder} delete={this.delete}/>
+                <Menu  position={this.state.position} showMenu={this.state.showMenu} onrename={this.renameShow} selectedItemName={this.state.selectedItem.name} filelist={this} newfolder={this.newfolder} delete={this.delete} getCopyItem={this.getCopyItem} getCutItem={this.getCutItem} onpast={this.onpast}/>
             </div>
         )
     },
     itemClickHandle: function (path,isfolder) { //文件点击事件
         var url = "http://101.200.129.112:9527/static/";
         if(isfolder){
-            console.log(path);
             hashHistory.push(path);
         }else{
             window.open(url+ path);
@@ -244,6 +245,7 @@ var Filelist = React.createClass({
             });
             }
             
+            
             this.cancel();
         }
     },
@@ -276,7 +278,6 @@ var Filelist = React.createClass({
             if(reg.test(dir[i].name)){
                 var r =/\((\d)\)$/;
                 index =!!dir[i].name.match(r)?dir[i].name.match(r)[1]*1:0;
-                
                 index++;
             }
         }
@@ -335,7 +336,80 @@ var Filelist = React.createClass({
             });
             }
             });
-    }
+    },
+    getCopyItem:function(item){
+        
+        this.setState({
+            copyItem:item,
+            cutItem:null
+        });
+    },
+    getCutItem:function(item){
+        item.setState({
+            hasCut:true
+        });
+        this.setState({
+            cutItem:item,
+            copyItem:null
+        });
+        
+    },
+    onpast:function(){
+        var oldpath,name;
+        var newpath = this.state.path;
+        var type="";
+        var successtxt="";
+         if(!!this.state.copyItem){
+             type="copy/";
+         }
+         if(!!this.state.cutItem){
+             type="move/";
+         }
+         switch(type){
+             case "copy/":
+             oldpath= this.state.copyItem.state.path;
+             name = this.state.copyItem.state.title;
+             successtxt="文件复制成功！";
+             break;
+             case "move/":
+             oldpath= this.state.cutItem.state.path;
+             name = this.state.cutItem.state.title;
+             successtxt="文件移动成功！";
+             break;
+             default:
+             break;
+         }
+         var oldname = name;
+        var This = this;
+        var dir = This.state.dir;
+        var time="";
+            for(var i=0;i<dir.length;i++){
+                if(dir[i].name === name){
+                    time ="("+new Date().getTime()+")" ;
+                    break;
+                }
+            }
+            name+=time;
+
+            newpath = newpath.replace(/\/$/,"");
+        if(oldpath===(newpath+"/"+oldname) && type ==="move/"){
+            message.error("该文件没有移动！");
+        }else{
+            past(oldpath,newpath,name,type,function(res){
+                console.log(oldpath,newpath+"/"+name);
+            dir.push(res);
+            This.setState({
+                dir:dir,
+                copyItem:null,
+                cutItem:null
+            });
+            message.success(successtxt);
+            },function(err){
+                console.log(err,oldpath,newpath);
+            })
+        }
+        
+    },
 
 });
 
