@@ -1,4 +1,4 @@
-// edit 2016/11/13
+// edit 2016/11/16
 import React from 'react';
 import {get,rename,mkdir,remove,past} from "./ajax.js";
 import { Icon ,Breadcrumb,Input,Modal,message} from "antd";
@@ -13,12 +13,22 @@ import TweenMax from "../../../gsap/TweenMax.js";
 
 var Filelistitem = React.createClass({
     getInitialState:function(){
-        return {
-            showRename:false,
-            title:this.props.title,
-            path:this.props.path,
-            hasCut:false
+        
+        var hasCut=false;
+         if(!!this.props.filelist.state.cutItem){
+            if(this.props.filelist.state.cutItem.state.title === this.props.title){
+                hasCut = true;
+            }else{
+                hasCut = false;
+            }
         }
+        return {
+            showRename: false,
+            title: this.props.title,
+            path: this.props.path,
+            hasCut: hasCut
+        }
+
         
     },
     render: function () {
@@ -101,12 +111,21 @@ var Filelistitem = React.createClass({
         }
     },
     componentWillReceiveProps:function(nextProps){ //更换选中项后取消激活rename 这里componentWillReceiveProps会遍历items
-        if(this.props.selectedItem.name===""){
-            this.setState({
-                showRename:false,
-                hasCut:false
-            });
+        var o ={
+            showRename:false,
+            hasCut:false    
+        };
+        if (this.props.selectedItem.name === "") {
+            o.showRename=false;
         }
+        if(!!this.props.filelist.state.cutItem){
+            if(this.props.filelist.state.cutItem.state.title === this.state.title){
+                o.hasCut = true;
+            }else{
+                o.hasCut = false;
+            }
+        }
+        this.setState(o);
     },
     
     rightClick:function(e){ //右键文件激活选中项
@@ -174,7 +193,7 @@ var Filelist = React.createClass({
         return (
             <div className="filelist" onContextMenu={(e)=>{e.preventDefault();}} onMouseDown={this.rightClick}>
                 <h1><span>C</span><span>L</span><span>O</span><span>U</span><span>N</span><span>D</span><span>云</span><span>盘</span></h1>
-                <div className="bread">
+                <div className="bread"  style={{"WebkitFilter":this.state.loading?"blur(6px)":"blur(0px)"}}>
                     <Breadcrumb>
                         <Breadcrumb.Item><Link to="/">Home</Link></Breadcrumb.Item>
                         {breadItems}
